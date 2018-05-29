@@ -1,3 +1,17 @@
+; Mapping
+; inputs
+EIN 	EQU 20h
+B_UP 	EQU EIN.0
+B_DOWN 	EQU EIN.1
+C_IS_UP EQU EIN.3
+C_IS_DOWN EQU EIN.4
+
+; outputs
+AUS 	EQU P3
+M_UP 	EQU AUS.0
+M_DOWN	EQU AUS.1
+
+
 ; INIT
 cseg at 0h
 ajmp init
@@ -13,44 +27,63 @@ ORG 20h
 init:
 mov IE, #10010010b
 mov tmod, #00000010b
-mov r7, #09h
-mov r6, #05h
-mov tl0, #0c0h
-mov th0, #0c0h
-setb P0.0
+mov r7, #17h
+mov r6, #25h
+mov tl0, #0ffh
+mov th0, #0h
+
+; clear inputs (buttons, contacts and motor)
+;mov P0, #0h
+;mov P3, #0h
+
+; start timer
+starttimer:
+setb tr0; start timer0
+ajmp anfang
 
 call zeigen
+
 ;---------------------------
+; Hauptprogramm
 anfang:
-jnb p1.0, starttimer
-jnb p1.1, stoptimer
-nurRT:
-jnb p1.2, RT
+mov EIN, P0
+
+mov C, B_UP
+ANL C, /M_DOWN
+ANL C, /C_IS_UP
+JNC S1
+SETB M_UP
+
+S1:
+mov C, B_DOWN
+ORL C, C_IS_UP
+JNC S2
+CLR M_UP
+
+S2:
+mov C, B_DOWN
+ANL C, /M_UP
+ANL C, /C_IS_DOWN
+JNC S3
+SETB M_DOWN
+
+S3:
+mov C, B_UP
+ORL C, C_IS_DOWN 
+JNC S4
+CLR M_DOWN
+
+S4:
+mov C, M_DOWN
+
 jnb tr0, da
 ajmp anfang
 da:
 call display
-jnb P0.0, nurRT
 ajmp anfang
 ;------------------------------
 ; unterprogramme
 ;
-; start timer
-starttimer:
-setb tr0; start timer0
-setb P1.0
-ajmp anfang
-; stop Timer
-stoptimer:
-clr tr0; stop timer
-setb P1.1
-ajmp anfang
-
-RT:
-clr tr0; stop timer
-setb P1.2
-setb P0.0
-ljmp init
 
 
 
@@ -59,7 +92,7 @@ ljmp init
 ;
 timer:
 inc r1
-cjne r1, #02h, nuranzeige
+cjne r1, #09h, nuranzeige
 mov r1, #00h
 call countdown
 ret
@@ -69,20 +102,18 @@ call zeigen
 ret
 
 countdown:
-cjne r6, #3bh, sekunden
-jmp minuten
-;cjne r7, #0h, minuten
-hupe:
-clr tr0; stop timer
-clr P0.0
-ret
+cjne r6, #3bh, minuten
+cjne r7, #17h, stunden
+mov r6, #00h
+mov r7, #00h
+jmp zeigen
 
-minuten:
+stunden:
 mov r6, #00h
 inc r7
 call zeigen
 ret
-sekunden:
+minuten:
 inc r6
 call zeigen
 ret
@@ -114,21 +145,21 @@ call display
 ret
 
 display:
-mov P3, R2
-clr P2.0
-setb P2.0
+mov P2, R2
+clr P1.0
+setb P1.0
 
-mov P3, R3
-clr P2.1
-setb P2.1
+mov P2, R3
+clr P1.1
+setb P1.1
 
-mov P3, R4
-clr P2.2
-setb P2.2
+mov P2, R4
+clr P1.2
+setb P1.2
 
-mov P3, R5
-clr P2.3
-setb P2.3
+mov P2, R5
+clr P1.3
+setb P1.3
 
 ret
 

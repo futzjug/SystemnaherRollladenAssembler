@@ -7,179 +7,250 @@ Rollladen Steuerung                                                             
   0003                   6     C_IS_UP EQU EIN.3
   0004                   7     C_IS_DOWN EQU EIN.4
                          8
-                         9     ; outputs
-  00B0                  10     AUS     EQU P3
-  00B0                  11     M_UP    EQU AUS.0
-  00B1                  12     M_DOWN  EQU AUS.1
-                        13
+                         9     ; Flags
+  0028                  10     FLAGS   EQU 28h
+  0040                  11     F_B_PRESSED EQU FLAGS.0
+  0041                  12     F_CLOCK_UP EQU FLAGS.1
+  0042                  13     F_CLOCK_DOWN EQU FLAGS.2
                         14
-                        15     ; INIT
-                        16     cseg at 0h
-0000 0120               17     ajmp init
-                        18     cseg at 100h
+                        15     ; outputs
+  00B0                  16     AUS     EQU P3
+  00B0                  17     M_UP    EQU AUS.0
+  00B1                  18     M_DOWN  EQU AUS.1
                         19
-                        20     ; Interrupt
-                        21     ORG 0bh
-****WARNING:ThisORGhaslowervaluethanthepreviousone
-000B 12006A             22     call timer
-000E 32                 23     reti
+                        20     ; LED Matrix
+  00B5                  21     VERT_ALWAYS_ON EQU AUS.5
+  00B6                  22     UPPER_LEDS EQU AUS.6
+  00B7                  23     LOWER_LEDS EQU AUS.7
                         24
-                        25     ; INIT
-                        26     ORG 20h
-                        27     init:
-0020 75A892             28     mov IE, #10010010b
-0023 758902             29     mov tmod, #00000010b
-0026 7F17               30     mov r7, #17h
-0028 7E25               31     mov r6, #25h
-002A 758AFF             32     mov tl0, #0ffh
-002D 758C00             33     mov th0, #0h
-                        34
-                        35     ; clear inputs (buttons, contacts and motor)
-                        36     ;mov P0, #0h
-                        37     ;mov P3, #0h
-                        38
-                        39     ; start timer
-                        40     starttimer:
-0030 D28C               41     setb tr0; start timer0
-0032 0137               42     ajmp anfang
+                        25
+                        26     ; INIT
+                        27     cseg at 0h
+0000 0120               28     ajmp init
+                        29     cseg at 100h
+                        30
+                        31     ; Interrupt
+                        32     ORG 0bh
+****WARNING:ThisORGhaslowervaluethanthepreviousone
+000B 120090             33     call timer
+000E 32                 34     reti
+                        35
+                        36     ; INIT
+                        37     ORG 20h
+                        38     init:
+0020 75A892             39     mov IE, #10010010b
+0023 758902             40     mov tmod, #00000010b
+0026 7F17               41     mov r7, #17h
+0028 7E25               42     mov r6, #25h
                         43
-0034 120091             44     call zeigen
-                        45
-                        46     ;---------------------------
-                        47     ; Hauptprogramm
-                        48     anfang:
-0037 858020             49     mov EIN, P0
-                        50
-003A A200               51     mov C, B_UP
-003C B0B1               52     ANL C, /M_DOWN
-003E B003               53     ANL C, /C_IS_UP
-0040 5002               54     JNC S1
-0042 D2B0               55     SETB M_UP
-                        56
-                        57     S1:
-0044 A201               58     mov C, B_DOWN
-0046 7203               59     ORL C, C_IS_UP
-0048 5002               60     JNC S2
-004A C2B0               61     CLR M_UP
-                        62
-                        63     S2:
-004C A201               64     mov C, B_DOWN
-004E B0B0               65     ANL C, /M_UP
-0050 B004               66     ANL C, /C_IS_DOWN
-0052 5002               67     JNC S3
-0054 D2B1               68     SETB M_DOWN
-                        69
-                        70     S3:
-0056 A200               71     mov C, B_UP
-0058 7204               72     ORL C, C_IS_DOWN
-005A 5002               73     JNC S4
-005C C2B1               74     CLR M_DOWN
-                        75
-                        76     S4:
-005E A2B1               77     mov C, M_DOWN
+                        44     ; timer speed
+002A 758A14             45     mov tl0, #14h
+002D 758C50             46     mov th0, #50h
+                        47
+                        48     ; clear inputs (buttons, contacts and motor)
+                        49     ;mov P0, #0h
+0030 75B000             50     mov P3, #0h
+                        51
+                        52     ; setze dauerhaft 1
+0033 D2B5               53     SETB VERT_ALWAYS_ON
+                        54
+                        55     ; start timer
+                        56     starttimer:
+0035 D28C               57     setb tr0; start timer0
+0037 013C               58     ajmp anfang
+                        59
+0039 1200C7             60     call zeigen
+                        61
+                        62     ;---------------------------
+                        63     ; Hauptprogramm
+                        64     anfang:
+003C 858020             65     mov EIN, P0
+                        66
+003F C3                 67     CLR C
+0040 A000               68     ORL C, /B_UP
+0042 7241               69     ORL C, F_CLOCK_UP
+                        70
+0044 B040               71     ANL C, /F_B_PRESSED
+0046 B0B1               72     ANL C, /M_DOWN
+0048 8203               73     ANL C, C_IS_UP
+                        74
+004A 5004               75     JNC S1
+004C D2B0               76     SETB M_UP
+004E C241               77     CLR F_CLOCK_UP
                         78
-0060 308C02             79     jnb tr0, da
-0063 0137               80     ajmp anfang
-                        81     da:
-****WARNING:Reservedkeywordusedaslabel
-0065 1200B2             82     call display
-0068 0137               83     ajmp anfang
-                        84     ;------------------------------
-                        85     ; unterprogramme
-                        86     ;
+                        79     S1:
+0050 D3                 80     SETB C
+0051 B001               81     ANL C, /B_DOWN
+0053 B040               82     ANL C, /F_B_PRESSED
+                        83
+0055 A003               84     ORL C, /C_IS_UP
+                        85
+0057 82B0               86     ANL C, M_UP
                         87
-                        88
-                        89
-                        90     ;----------------------
-                        91     ; timer
-                        92     ;
-                        93     timer:
-006A 09                 94     inc r1
-006B B90906             95     cjne r1, #09h, nuranzeige
-006E 7900               96     mov r1, #00h
-0070 120078             97     call countdown
-0073 22                 98     ret
-                        99
-                       100     nuranzeige:
-0074 120091            101     call zeigen
-0077 22                102     ret
-                       103
-                       104     countdown:
-0078 BE3B11            105     cjne r6, #3bh, minuten
-007B BF1707            106     cjne r7, #17h, stunden
-007E 7E00              107     mov r6, #00h
-0080 7F00              108     mov r7, #00h
-0082 020091            109     jmp zeigen
-                       110
-                       111     stunden:
-0085 7E00              112     mov r6, #00h
-0087 0F                113     inc r7
-0088 120091            114     call zeigen
-008B 22                115     ret
-                       116     minuten:
-008C 0E                117     inc r6
-008D 120091            118     call zeigen
-0090 22                119     ret
-                       120
-                       121     zeigen:
-0091 900300            122     mov DPTR, #table
-0094 EE                123     mov a, R6
-0095 75F00A            124     mov b, #0ah
-0098 84                125     div ab
-0099 F8                126     mov R0, a
-009A 93                127     movc a,@a+dptr
-009B FB                128     mov r3, a
-009C E8                129     mov a, r0
-009D C5F0              130     xch a,b
-009F 93                131     movc a, @a+dptr
-00A0 FA                132     mov r2, a
-                       133     ;----------------
-00A1 EF                134     mov a, R7
-00A2 75F00A            135     mov b, #0ah
-00A5 84                136     div ab
-00A6 F8                137     mov R0, a
-00A7 93                138     movc a,@a+dptr
-00A8 FD                139     mov r5, a
-00A9 E8                140     mov a, r0
-00AA C5F0              141     xch a,b
-00AC 93                142     movc a, @a+dptr
-00AD FC                143     mov r4, a
-00AE 1200B2            144     call display
-00B1 22                145     ret
-                       146
-                       147     display:
-00B2 8AA0              148     mov P2, R2
-00B4 C290              149     clr P1.0
-00B6 D290              150     setb P1.0
-                       151
-00B8 8BA0              152     mov P2, R3
-00BA C291              153     clr P1.1
-00BC D291              154     setb P1.1
+0059 5004               88     JNC S2
+005B C2B0               89     CLR M_UP
+005D D240               90     SETB F_B_PRESSED
+                        91
+                        92     S2:
+005F C3                 93     CLR C
+0060 A001               94     ORL C, /B_DOWN
+0062 7242               95     ORL C, F_CLOCK_DOWN
+                        96
+0064 B040               97     ANL C, /F_B_PRESSED
+0066 B0B0               98     ANL C, /M_UP
+0068 8204               99     ANL C, C_IS_DOWN
+                       100
+006A 5004              101     JNC S3
+006C D2B1              102     SETB M_DOWN
+006E C242              103     CLR F_CLOCK_DOWN
+                       104
+                       105     S3:
+0070 D3                106     SETB C
+0071 B000              107     ANL C, /B_UP
+0073 B040              108     ANL C, /F_B_PRESSED
+                       109
+0075 A004              110     ORL C, /C_IS_DOWN
+                       111
+0077 82B1              112     ANL C, M_DOWN
+                       113
+0079 5004              114     JNC S4
+007B C2B1              115     CLR M_DOWN
+007D D240              116     SETB F_B_PRESSED
+                       117
+                       118     S4:
+007F C3                119     CLR C
+0080 A000              120     ORL C, /B_UP
+0082 A001              121     ORL C, /B_DOWN
+0084 9240              122     MOV F_B_PRESSED, C
+                       123
+0086 308C02            124     jnb tr0, da
+0089 013C              125     ajmp anfang
+                       126     da:
+****WARNING:Reservedkeywordusedaslabel
+008B 1200F6            127     call display
+008E 013C              128     ajmp anfang
+                       129     ;------------------------------
+                       130     ; unterprogramme
+                       131     ;
+                       132
+                       133
+                       134
+                       135     ;----------------------
+                       136     ; timer
+                       137     ;
+                       138     timer:
+0090 09                139     inc r1
+                       140     ; timer repeats
+0091 B90506            141     cjne r1, #05h, nuranzeige
+0094 7900              142     mov r1, #00h
+0096 12009E            143     call countdown
+0099 22                144     ret
+                       145
+                       146     nuranzeige:
+009A 1200C7            147     call zeigen
+009D 22                148     ret
+                       149
+                       150     countdown:
+                       151     ; Uhrzeit Check -> Hochfahren um 23:45
+009E BE2605            152     cjne r6, #26h, clockDown ; check minuten = 38
+00A1 BF1702            153     cjne r7, #17h, clockDown ; check stunden = 23
+00A4 D241              154     SETB F_CLOCK_UP
                        155
-00BE 8CA0              156     mov P2, R4
-00C0 C292              157     clr P1.2
-00C2 D292              158     setb P1.2
-                       159
-00C4 8DA0              160     mov P2, R5
-00C6 C293              161     clr P1.3
-00C8 D293              162     setb P1.3
-                       163
-00CA 22                164     ret
-                       165
-                       166     org 300h
-                       167     table:
-0300 C0                168     db 11000000b
-0301 F9A4B0            169     db 11111001b, 10100100b, 10110000b
-0304 999282            170     db 10011001b, 10010010b, 10000010b
-0307 F88090            171     db 11111000b, 10000000b, 10010000b
-                       172
-                       173     end
+                       156     clockDown:
+                       157     ; Uhrzeit Check -> Runterfahren um 23:48
+00A6 BE2805            158     cjne r6, #28h, clock ; check minuten = 40
+00A9 BF1702            159     cjne r7, #17h, clock ; check stunden = 23
+00AC D242              160     SETB F_CLOCK_DOWN
+                       161
+                       162     clock:
+00AE BE3B11            163     cjne r6, #3bh, minuten
+00B1 BF1707            164     cjne r7, #17h, stunden
+00B4 7E00              165     mov r6, #00h
+00B6 7F00              166     mov r7, #00h
+00B8 0200C7            167     jmp zeigen
+                       168
+                       169     stunden:
+00BB 7E00              170     mov r6, #00h
+00BD 0F                171     inc r7
+00BE 1200C7            172     call zeigen
+00C1 22                173     ret
+                       174     minuten:
+00C2 0E                175     inc r6
+00C3 1200C7            176     call zeigen
+00C6 22                177     ret
+                       178
+                       179     zeigen:
+                       180     ; update LED Matrix
+00C7 C2B6              181     CLR UPPER_LEDS
+00C9 C2B7              182     CLR LOWER_LEDS
+                       183
+00CB 30B002            184     jnb M_UP, zeigenLower
+00CE D2B6              185     SETB UPPER_LEDS
+                       186
+                       187     zeigenLower:
+00D0 30B102            188     jnb M_DOWN, zeigenClock
+00D3 D2B7              189     SETB LOWER_LEDS
+                       190
+                       191     zeigenClock:
+                       192     ; update clock
+00D5 900300            193     mov DPTR, #table
+00D8 EE                194     mov a, R6
+00D9 75F00A            195     mov b, #0ah
+00DC 84                196     div ab
+00DD F8                197     mov R0, a
+00DE 93                198     movc a,@a+dptr
+00DF FB                199     mov r3, a
+00E0 E8                200     mov a, r0
+00E1 C5F0              201     xch a,b
+00E3 93                202     movc a, @a+dptr
+00E4 FA                203     mov r2, a
+                       204     ;----------------
+00E5 EF                205     mov a, R7
+00E6 75F00A            206     mov b, #0ah
+00E9 84                207     div ab
+00EA F8                208     mov R0, a
+00EB 93                209     movc a,@a+dptr
+00EC FD                210     mov r5, a
+00ED E8                211     mov a, r0
+00EE C5F0              212     xch a,b
+00F0 93                213     movc a, @a+dptr
+00F1 FC                214     mov r4, a
+00F2 1200F6            215     call display
+00F5 22                216     ret
+                       217
+                       218     display:
+00F6 8AA0              219     mov P2, R2
+00F8 C290              220     clr P1.0
+00FA D290              221     setb P1.0
+                       222
+00FC 8BA0              223     mov P2, R3
+00FE C291              224     clr P1.1
+0100 D291              225     setb P1.1
+                       226
+0102 8CA0              227     mov P2, R4
+0104 C292              228     clr P1.2
+0106 D292              229     setb P1.2
+                       230
+0108 8DA0              231     mov P2, R5
+010A C293              232     clr P1.3
+010C D293              233     setb P1.3
+                       234
+010E 22                235     ret
+                       236
+                       237     org 300h
+                       238     table:
+0300 C0                239     db 11000000b
+0301 F9A4B0            240     db 11111001b, 10100100b, 10110000b
+0304 999282            241     db 10011001b, 10010010b, 10000010b
+0307 F88090            242     db 11111000b, 10000000b, 10010000b
+                       243
+                       244     end
 ASSEMBLY COMPLETE, NO ERRORS FOUND, 2 WARNINGS
 
 
 ERROR SUMMARY:
-Line 21, WARNING:ThisORGhaslowervaluethanthepreviousone
-Line 82, WARNING:Reservedkeywordusedaslabel
+Line 32, WARNING:ThisORGhaslowervaluethanthepreviousone
+Line 127, WARNING:Reservedkeywordusedaslabel
 
 SYMBOL TABLE:
 ??MCU_8051_IDE . . . . . . . . . . .  N  NUMB  8051H  NOT USED
@@ -192,7 +263,7 @@ ADCLK. . . . . . . . . . . . . . . .  D  ADDR  00F2H  NOT USED
 ADCON. . . . . . . . . . . . . . . .  D  ADDR  00F3H  NOT USED
 ADDH . . . . . . . . . . . . . . . .  D  ADDR  00F5H  NOT USED
 ADDL . . . . . . . . . . . . . . . .  D  ADDR  00F4H  NOT USED
-ANFANG . . . . . . . . . . . . . . .  C  ADDR  0037H
+ANFANG . . . . . . . . . . . . . . .  C  ADDR  003CH
 AUS. . . . . . . . . . . . . . . . .  N  NUMB  00B0H  NOT USED
 AUXR . . . . . . . . . . . . . . . .  D  ADDR  008EH  NOT USED
 AUXR1. . . . . . . . . . . . . . . .  D  ADDR  00A2H  NOT USED
@@ -234,16 +305,18 @@ CKRL . . . . . . . . . . . . . . . .  D  ADDR  0097H  NOT USED
 CKSEL. . . . . . . . . . . . . . . .  D  ADDR  0085H  NOT USED
 CL . . . . . . . . . . . . . . . . .  D  ADDR  00E9H  NOT USED
 CLKREG . . . . . . . . . . . . . . .  D  ADDR  008FH  NOT USED
+CLOCK. . . . . . . . . . . . . . . .  C  ADDR  00AEH
+CLOCKDOWN. . . . . . . . . . . . . .  C  ADDR  00A6H
 CMOD . . . . . . . . . . . . . . . .  D  ADDR  00D9H  NOT USED
-COUNTDOWN. . . . . . . . . . . . . .  C  ADDR  0078H
+COUNTDOWN. . . . . . . . . . . . . .  C  ADDR  009EH
 CPRL2. . . . . . . . . . . . . . . .  B  ADDR  00C8H  NOT USED
 CR . . . . . . . . . . . . . . . . .  B  ADDR  00DEH  NOT USED
 CT2. . . . . . . . . . . . . . . . .  B  ADDR  00C9H  NOT USED
 CY . . . . . . . . . . . . . . . . .  B  ADDR  00D7H  NOT USED
 C_IS_DOWN. . . . . . . . . . . . . .  N  NUMB  0004H
 C_IS_UP. . . . . . . . . . . . . . .  N  NUMB  0003H
-DA . . . . . . . . . . . . . . . . .  C  ADDR  0065H
-DISPLAY. . . . . . . . . . . . . . .  C  ADDR  00B2H
+DA . . . . . . . . . . . . . . . . .  C  ADDR  008BH
+DISPLAY. . . . . . . . . . . . . . .  C  ADDR  00F6H
 DP0H . . . . . . . . . . . . . . . .  D  ADDR  0083H  NOT USED
 DP0L . . . . . . . . . . . . . . . .  D  ADDR  0082H  NOT USED
 DP1H . . . . . . . . . . . . . . . .  D  ADDR  0085H  NOT USED
@@ -266,6 +339,10 @@ EXTI0. . . . . . . . . . . . . . . .  C  ADDR  0003H  NOT USED
 EXTI1. . . . . . . . . . . . . . . .  C  ADDR  0013H  NOT USED
 F0 . . . . . . . . . . . . . . . . .  B  ADDR  00D5H  NOT USED
 FE . . . . . . . . . . . . . . . . .  B  ADDR  009FH  NOT USED
+FLAGS. . . . . . . . . . . . . . . .  N  NUMB  0028H  NOT USED
+F_B_PRESSED. . . . . . . . . . . . .  N  NUMB  0040H
+F_CLOCK_DOWN . . . . . . . . . . . .  N  NUMB  0042H
+F_CLOCK_UP . . . . . . . . . . . . .  N  NUMB  0041H
 IE . . . . . . . . . . . . . . . . .  D  ADDR  00A8H
 IE0. . . . . . . . . . . . . . . . .  B  ADDR  0089H  NOT USED
 IE1. . . . . . . . . . . . . . . . .  B  ADDR  008BH  NOT USED
@@ -283,10 +360,11 @@ IT1. . . . . . . . . . . . . . . . .  B  ADDR  008AH  NOT USED
 KBE. . . . . . . . . . . . . . . . .  D  ADDR  009DH  NOT USED
 KBF. . . . . . . . . . . . . . . . .  D  ADDR  009EH  NOT USED
 KBLS . . . . . . . . . . . . . . . .  D  ADDR  009CH  NOT USED
-MINUTEN. . . . . . . . . . . . . . .  C  ADDR  008CH
+LOWER_LEDS . . . . . . . . . . . . .  N  NUMB  00B7H
+MINUTEN. . . . . . . . . . . . . . .  C  ADDR  00C2H
 M_DOWN . . . . . . . . . . . . . . .  N  NUMB  00B1H
 M_UP . . . . . . . . . . . . . . . .  N  NUMB  00B0H
-NURANZEIGE . . . . . . . . . . . . .  C  ADDR  0074H
+NURANZEIGE . . . . . . . . . . . . .  C  ADDR  009AH
 OSCCON . . . . . . . . . . . . . . .  D  ADDR  0086H  NOT USED
 OV . . . . . . . . . . . . . . . . .  B  ADDR  00D2H  NOT USED
 P. . . . . . . . . . . . . . . . . .  B  ADDR  00D0H  NOT USED
@@ -295,7 +373,7 @@ P1 . . . . . . . . . . . . . . . . .  D  ADDR  0090H
 P1M1 . . . . . . . . . . . . . . . .  D  ADDR  00D4H  NOT USED
 P1M2 . . . . . . . . . . . . . . . .  D  ADDR  00E2H  NOT USED
 P2 . . . . . . . . . . . . . . . . .  D  ADDR  00A0H
-P3 . . . . . . . . . . . . . . . . .  D  ADDR  00B0H  NOT USED
+P3 . . . . . . . . . . . . . . . . .  D  ADDR  00B0H
 P3M1 . . . . . . . . . . . . . . . .  D  ADDR  00D5H  NOT USED
 P3M2 . . . . . . . . . . . . . . . .  D  ADDR  00E3H  NOT USED
 P4 . . . . . . . . . . . . . . . . .  D  ADDR  00C0H  NOT USED
@@ -329,10 +407,10 @@ RI . . . . . . . . . . . . . . . . .  B  ADDR  0098H  NOT USED
 RS0. . . . . . . . . . . . . . . . .  B  ADDR  00D3H  NOT USED
 RS1. . . . . . . . . . . . . . . . .  B  ADDR  00D4H  NOT USED
 RXD. . . . . . . . . . . . . . . . .  B  ADDR  00B0H  NOT USED
-S1 . . . . . . . . . . . . . . . . .  C  ADDR  0044H
-S2 . . . . . . . . . . . . . . . . .  C  ADDR  004CH
-S3 . . . . . . . . . . . . . . . . .  C  ADDR  0056H
-S4 . . . . . . . . . . . . . . . . .  C  ADDR  005EH
+S1 . . . . . . . . . . . . . . . . .  C  ADDR  0050H
+S2 . . . . . . . . . . . . . . . . .  C  ADDR  005FH
+S3 . . . . . . . . . . . . . . . . .  C  ADDR  0070H
+S4 . . . . . . . . . . . . . . . . .  C  ADDR  007FH
 SADDR. . . . . . . . . . . . . . . .  D  ADDR  00A9H  NOT USED
 SADDR_0. . . . . . . . . . . . . . .  D  ADDR  00A9H  NOT USED
 SADDR_1. . . . . . . . . . . . . . .  D  ADDR  00AAH  NOT USED
@@ -352,8 +430,8 @@ SPDAT. . . . . . . . . . . . . . . .  D  ADDR  00C5H  NOT USED
 SPDR . . . . . . . . . . . . . . . .  D  ADDR  0086H  NOT USED
 SPSR . . . . . . . . . . . . . . . .  D  ADDR  00AAH  NOT USED
 SPSTA. . . . . . . . . . . . . . . .  D  ADDR  00C4H  NOT USED
-STARTTIMER . . . . . . . . . . . . .  C  ADDR  0030H  NOT USED
-STUNDEN. . . . . . . . . . . . . . .  C  ADDR  0085H
+STARTTIMER . . . . . . . . . . . . .  C  ADDR  0035H  NOT USED
+STUNDEN. . . . . . . . . . . . . . .  C  ADDR  00BBH
 T0 . . . . . . . . . . . . . . . . .  B  ADDR  00B4H  NOT USED
 T1 . . . . . . . . . . . . . . . . .  B  ADDR  00B5H  NOT USED
 T2CON. . . . . . . . . . . . . . . .  D  ADDR  00C8H  NOT USED
@@ -369,7 +447,7 @@ TH0. . . . . . . . . . . . . . . . .  D  ADDR  008CH
 TH1. . . . . . . . . . . . . . . . .  D  ADDR  008DH  NOT USED
 TH2. . . . . . . . . . . . . . . . .  D  ADDR  00CDH  NOT USED
 TI . . . . . . . . . . . . . . . . .  B  ADDR  0099H  NOT USED
-TIMER. . . . . . . . . . . . . . . .  C  ADDR  006AH
+TIMER. . . . . . . . . . . . . . . .  C  ADDR  0090H
 TIMER0 . . . . . . . . . . . . . . .  C  ADDR  000BH  NOT USED
 TIMER1 . . . . . . . . . . . . . . .  C  ADDR  001BH  NOT USED
 TIMER2 . . . . . . . . . . . . . . .  C  ADDR  002BH  NOT USED
@@ -381,8 +459,12 @@ TR0. . . . . . . . . . . . . . . . .  B  ADDR  008CH
 TR1. . . . . . . . . . . . . . . . .  B  ADDR  008EH  NOT USED
 TR2. . . . . . . . . . . . . . . . .  B  ADDR  00CAH  NOT USED
 TXD. . . . . . . . . . . . . . . . .  B  ADDR  00B1H  NOT USED
+UPPER_LEDS . . . . . . . . . . . . .  N  NUMB  00B6H
+VERT_ALWAYS_ON . . . . . . . . . . .  N  NUMB  00B5H
 WDTCON . . . . . . . . . . . . . . .  D  ADDR  00A7H  NOT USED
 WDTPRG . . . . . . . . . . . . . . .  D  ADDR  00A7H  NOT USED
 WDTRST . . . . . . . . . . . . . . .  D  ADDR  00A6H  NOT USED
 WR . . . . . . . . . . . . . . . . .  B  ADDR  00B6H  NOT USED
-ZEIGEN . . . . . . . . . . . . . . .  C  ADDR  0091H
+ZEIGEN . . . . . . . . . . . . . . .  C  ADDR  00C7H
+ZEIGENCLOCK. . . . . . . . . . . . .  C  ADDR  00D5H
+ZEIGENLOWER. . . . . . . . . . . . .  C  ADDR  00D0H

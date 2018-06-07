@@ -1,3 +1,3 @@
 # SystemnaherRollladenAssembler
 
-Check out the .pdf for further information
+Check out the Documentation-Folder for our presentation as well as our project paper
